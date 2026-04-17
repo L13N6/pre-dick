@@ -77,6 +77,14 @@ def pick_market(ctx: Dict[str, Any]) -> Tuple[str, Dict[str, Any], List[Dict[str
     return markets[0]["id"], markets[0], markets
 
 
+def get_timeslot_info(ctx: Dict[str, Any]) -> Tuple[int, int, int]:
+    ts = ctx.get("data", {}).get("agent", {}).get("timeslot", {})
+    remaining = int(ts.get("submissions_remaining", 0) or 0)
+    used = int(ts.get("submissions_used", 0) or 0)
+    resets = int(ts.get("slot_resets_in_seconds", 0) or 0)
+    return remaining, used, resets
+
+
 def infer_direction(candles: List[Dict[str, Any]]) -> str:
     if len(candles) < 8:
         return "down"
@@ -243,13 +251,28 @@ def main() -> int:
         print("[run_predict_v2] No submittable market right now.")
         return 0
 
+    remaining, used, resets = get_timeslot_info(ctx)
+    print(f"[run_predict_v2] timeslot remaining={remaining} used={used} resets_in={resets}s")
+    if remaining <= 0:
+        print("[run_predict_v2] no submissions remaining in this slot; stopping")
+        return 0
+
+    dynamic_retries = min(MAX_RETRIES, remaining)
+    if remaining == 1:
+        dynamic_retries = 1
+
     market_id, market, _ = pick_market(ctx)
+    closes_in = int(market.get("closes_in_seconds", 0) or 0)
+    if closes_in and closes_in < 180:
+        print(f"[run_predict_v2] market closes too soon ({closes_in}s); skipping to save slot")
+        return 0
+
     candles = ctx.get("data", {}).get("klines", {}).get("candles", [])
     direction = infer_direction(candles)
-    print(f"[run_predict_v2] selected market={market_id} direction={direction}")
+    print(f"[run_predict_v2] selected market={market_id} direction={direction} closes_in={closes_in}s retries={dynamic_retries}")
 
     forced_letters: Optional[str] = None
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, dynamic_retries + 1):
         ch = challenge(market_id)
         prompt = ch["data"]["prompt"]
         nonce = ch["data"]["nonce"]
@@ -266,7 +289,8 @@ def main() -> int:
             return 0
         code = (((res.get("error") or {}).get("code")) or "")
         if code in {"TIMESLOT_LIMIT_EXCEEDED"}:
-            print("[run_predict_v2] hit timeslot limit, stopping")
+            wait_hint = (((res.get("_internal") or {}).get("wait_seconds")) or 0)
+            print(f"[run_predict_v2] hit timeslot limit, stopping (wait_seconds={wait_hint})")
             return 1
         err_letters = parse_letters_from_error(res)
         if err_letters:
