@@ -100,16 +100,29 @@ def price_levels(candles: List[Dict[str, Any]]) -> Tuple[str, str, str]:
 
 def parse_constraint(prompt: str) -> Optional[str]:
     prompt_upper = prompt.upper()
-    m = re.search(r"SPELL\s+([A-Z](?:\W*[A-Z]){2,})", prompt_upper)
-    if m:
-        letters = re.sub(r"[^A-Z]", "", m.group(1))
-        if len(letters) >= 3:
-            return letters[:3]
-    m = re.search(r"READ\s+([A-Z](?:\W*[A-Z]){2,})", prompt_upper)
-    if m:
-        letters = re.sub(r"[^A-Z]", "", m.group(1))
-        if len(letters) >= 3:
-            return letters[:3]
+    patterns = [
+        r"SPELL\s+([A-Z](?:\W*[A-Z]){2,})",
+        r"READ\s+([A-Z](?:\W*[A-Z]){2,})",
+        r"INITIALS?\s+SPELL\s+([A-Z](?:\W*[A-Z]){2,})",
+        r"LETTERS?\s+SPELL\s+([A-Z](?:\W*[A-Z]){2,})",
+        r"FIRST\s+LETTERS?\s+READ\s+([A-Z](?:\W*[A-Z]){2,})",
+    ]
+    for pat in patterns:
+        m = re.search(pat, prompt_upper)
+        if m:
+            letters = re.sub(r"[^A-Z]", "", m.group(1))
+            if len(letters) >= 3:
+                return letters[:3]
+
+    # fallback: try to capture quoted / emphasized 3-letter sequences near challenge words
+    for pat in [
+        r"(?:SPELL|READ)[^A-Z]{0,30}['\"]?([A-Z]{3})['\"]?",
+        r"FIRST\s+LETTERS?[^A-Z]{0,30}['\"]?([A-Z]{3})['\"]?",
+        r"INITIALS?[^A-Z]{0,30}['\"]?([A-Z]{3})['\"]?",
+    ]:
+        m = re.search(pat, prompt_upper)
+        if m:
+            return m.group(1)[:3]
     return None
 
 
@@ -195,6 +208,29 @@ def submit_prediction(market_id: str, direction: str, tickets: int, reasoning: s
     return extract_json(out)
 
 
+def parse_letters_from_error(res: Dict[str, Any]) -> Optional[str]:
+    texts = []
+    if isinstance(res, dict):
+        if res.get("user_message"):
+            texts.append(str(res.get("user_message")))
+        err = res.get("error") or {}
+        if err.get("message"):
+            texts.append(str(err.get("message")))
+        debug = err.get("debug") or {}
+        if debug.get("raw_error"):
+            texts.append(str(debug.get("raw_error")))
+    blob = "\n".join(texts).upper()
+    for pat in [
+        r"SPELL\s+'?([A-Z]{3})'?(?:\.|\s|$)",
+        r"FIRST\s+LETTERS\s+SPELL\s+'?([A-Z]{3})'?(?:\.|\s|$)",
+        r"READ\s+'?([A-Z]{3})'?(?:\.|\s|$)",
+    ]:
+        m = re.search(pat, blob)
+        if m:
+            return m.group(1)
+    return None
+
+
 def main() -> int:
     print(f"[run_predict_v2] mode={MODE} server={SERVER}")
     unlock_wallet()
@@ -212,14 +248,16 @@ def main() -> int:
     direction = infer_direction(candles)
     print(f"[run_predict_v2] selected market={market_id} direction={direction}")
 
+    forced_letters: Optional[str] = None
     for attempt in range(1, MAX_RETRIES + 1):
         ch = challenge(market_id)
         prompt = ch["data"]["prompt"]
         nonce = ch["data"]["nonce"]
-        letters = parse_constraint(prompt)
+        parsed_letters = parse_constraint(prompt)
+        letters = forced_letters or parsed_letters
         snapshot = parse_snapshot(prompt)
         reasoning = build_reasoning(MODE, direction, market, candles, letters, snapshot)
-        print(f"[run_predict_v2] attempt={attempt} letters={letters} snapshot={snapshot} nonce={nonce}")
+        print(f"[run_predict_v2] attempt={attempt} parsed_letters={parsed_letters} forced_letters={forced_letters} using_letters={letters} snapshot={snapshot} nonce={nonce}")
         print(f"[run_predict_v2] reasoning={reasoning}")
         res = submit_prediction(market_id, direction, TICKETS, reasoning, nonce)
         print(json.dumps(res, indent=2))
@@ -230,6 +268,10 @@ def main() -> int:
         if code in {"TIMESLOT_LIMIT_EXCEEDED"}:
             print("[run_predict_v2] hit timeslot limit, stopping")
             return 1
+        err_letters = parse_letters_from_error(res)
+        if err_letters:
+            forced_letters = err_letters
+            print(f"[run_predict_v2] server hinted letters={forced_letters}; will retry with adapted reasoning")
         time.sleep(2)
 
     print("[run_predict_v2] exhausted retries without success")
