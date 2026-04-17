@@ -1,109 +1,111 @@
-Predict Bot Setup & Execution
+# Predict Bot Setup & Execution
 
-This repository provides a set of scripts for setting up and running a prediction bot on your server. The bot interacts with a prediction server, unlocks a wallet, and submits market predictions based on different modes (Chartist, Conservative, Sentiment, etc.).
+This repository contains a simple VPS-friendly toolkit for installing and running an AWP Predict WorkNet bot.
 
-Table of Contents
-- Setup
-- Usage
-- Files
-  - setup.sh
-  - run.sh
-  - run_predict_v2.py
-  - status.sh
-- Configuration
-- License
+## Files
 
-Setup
+- `setup.sh` → install dependencies, `awp-wallet`, `predict-agent`, and initialize wallet
+- `predict.sh` → run the smart v2 predictor with `--mode`
+- `run_predict_v2.py` → core adaptive logic (challenge parsing, reasoning composition, submit retries)
+- `status.sh` → check status, orders, history, and recent logs
 
-1. Clone the repository
+## Setup
 
-First, clone this repository to your local machine:
+Clone the repo:
 
+```bash
 git clone https://github.com/L13N6/pre-dick.git
-cd predict-bot
+cd pre-dick
+```
 
-2. Install Dependencies
+Run setup:
 
-Run the install_predict.sh script to install necessary dependencies and set up the bot:
-
-bash install_predict.sh
+```bash
+bash setup.sh
+```
 
 This will:
-- Install required software (Node.js, Python, Git, etc.).
-- Install awp-wallet and predict-agent.
-- Set up a wallet and check your wallet address.
+- install Node.js / Python / Git / curl
+- install `awp-wallet`
+- install `predict-agent`
+- initialize wallet if needed
+- show wallet address
 
-3. Wallet Setup
+## Run
 
-The script will prompt to initialize your wallet. If needed, it will provide the wallet address, which is required for bot operations.
+Basic usage:
 
-Usage
+```bash
+bash predict.sh --mode chartist
+```
 
-1. Run the Prediction Bot
+Other supported modes:
 
-After setting up the bot, run the run_predict.sh script to start the prediction loop:
+```bash
+bash predict.sh --mode conservative
+bash predict.sh --mode sentiment
+bash predict.sh --mode macro
+```
 
-bash run_predict.sh --mode chartist --tickets 300
+Also supported if needed:
 
-You can specify the mode as one of the following:
-- chartist
-- conservative
-- sentiment
-- macro
-- degen
-- sniper
-- contrarian
+```bash
+bash predict.sh --mode degen
+bash predict.sh --mode sniper
+bash predict.sh --mode contrarian
+```
 
-If no mode is provided, it defaults to chartist.
+Optional tickets override:
 
-The --tickets parameter defines how many tickets the bot will use for predictions (default is 300).
+```bash
+bash predict.sh --mode chartist --tickets 300
+```
 
-2. Check Bot Status
+## Status
 
-You can check the bot's status, orders, and history with the status_predict.sh script:
+Check bot status:
 
-bash status_predict.sh
+```bash
+bash status.sh
+```
 
-This will give you:
-- The agent's current status.
-- A list of orders.
-- A history of predictions.
-- Logs from the bot's activity.
+This shows:
+- agent status
+- orders
+- history
+- PID if present
+- recent log tail
 
-Files
+## How it works
 
-setup_predict.sh
-This script installs all the necessary dependencies for the prediction bot:
-- Installs Node.js, Python, and other required tools.
-- Installs awp-wallet and predict-agent.
-- Initializes the wallet.
+`predict.sh` is the launcher.
 
-run_predict_v2.sh
-This shell script runs the Python script run_predict_v2.py with the provided arguments. It allows you to specify the prediction mode and number of tickets. It sets up environment variables and executes the Python script accordingly.
+It passes arguments into `run_predict_v2.py`, which will:
+1. unlock wallet
+2. run preflight
+3. fetch market context
+4. choose a market
+5. fetch the current challenge/nonce
+6. build reasoning adapted to the prompt constraints
+7. submit prediction
+8. retry on certain validation failures
 
-run_predict_v2.py
-This is the core Python script that:
-- Unlocks the wallet using awp-wallet.
-- Performs preflight checks and retrieves the current market context.
-- Makes predictions based on the selected mode (e.g., chartist, conservative).
-- Submits the prediction to the server.
+## Configuration
 
-status_predict.sh
-This script checks the status of the bot. It retrieves:
-- The current status of the bot.
-- Pending and completed orders.
-- A history of past predictions.
-- Logs for debugging purposes.
+Environment variables supported by `run_predict_v2.py`:
 
-Configuration
+- `PREDICT_SERVER_URL` → default `https://api.agentpredict.work`
+- `PREDICT_MODE` → set automatically by `predict.sh --mode ...`
+- `PREDICT_TICKETS` → set automatically by `predict.sh --tickets ...`
+- `PREDICT_MARKET` → optional market preference, default `recommended`
+- `PREDICT_MAX_RETRIES` → retry count, default `2`
 
-You can configure the bot by setting environment variables:
-- PREDICT_SERVER_URL: The URL of the prediction server (default: https://api.agentpredict.work).
-- PREDICT_MODE: The mode for making predictions (chartist, conservative, etc.).
-- PREDICT_TICKETS: The number of tickets for predictions (default: 300).
-- PREDICT_MARKET: The preferred market for predictions (default: recommended).
-- PREDICT_MAX_RETRIES: The maximum number of retries for submitting predictions (default: 2).
+## Quick Start
 
-License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+```bash
+git clone https://github.com/L13N6/pre-dick.git
+cd pre-dick
+bash setup.sh
+bash predict.sh --mode chartist
+bash status.sh
+```
