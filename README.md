@@ -8,6 +8,7 @@ This repository contains a simple VPS-friendly toolkit for installing and runnin
 - `predict.sh` → run the smart v2 predictor with `--mode`
 - `run_predict_v2.py` → core adaptive logic (challenge parsing, reasoning composition, submit retries)
 - `status.sh` → check status, orders, history, and recent logs
+- `predict_loop.sh` → repeat `predict.sh` with cooldown between runs
 
 ## Setup
 
@@ -59,6 +60,20 @@ Optional tickets override:
 
 ```bash
 bash predict.sh --mode chartist --tickets 300
+```
+
+## Loop Mode
+
+Run repeated cycles with cooldown:
+
+```bash
+bash predict_loop.sh --mode chartist
+```
+
+Optional custom sleep / tickets:
+
+```bash
+bash predict_loop.sh --mode chartist --sleep 900 --tickets 300
 ```
 
 ## Status
