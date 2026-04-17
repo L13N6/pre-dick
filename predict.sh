@@ -44,5 +44,9 @@ esac
 export PREDICT_MODE="$MODE"
 export PREDICT_TICKETS="$TICKETS"
 
+LOG_DIR="$HOME/.openclaw/workspace"
+LOG_FILE="$LOG_DIR/predict.log"
+mkdir -p "$LOG_DIR"
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-python3 "$SCRIPT_DIR/run_predict_v2.py"
+python3 "$SCRIPT_DIR/run_predict_v2.py" 2>&1 | tee -a "$LOG_FILE"

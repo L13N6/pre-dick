@@ -69,6 +69,11 @@ Check bot status:
 bash status.sh
 ```
 
+Default log file:
+```bash
+~/.openclaw/workspace/predict.log
+```
+
 This shows:
 - agent status
 - orders

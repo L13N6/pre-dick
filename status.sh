@@ -8,6 +8,7 @@ set -e
 
 AGENT_ID="${AGENT_ID:-predict-worker}"
 PREDICT_SERVER_URL="${PREDICT_SERVER_URL:-https://api.agentpredict.work}"
+LOG_FILE="${LOG_FILE:-$HOME/.openclaw/workspace/predict.log}"
 
 echo "================================================"
 echo " Predict Bot Status"
@@ -36,8 +37,8 @@ fi
 
 echo ""
 echo "== LOG TAIL =="
-if [ -f "$HOME/${AGENT_ID}.log" ]; then
-  tail -n 80 "$HOME/${AGENT_ID}.log"
+if [ -f "$LOG_FILE" ]; then
+  tail -n 80 "$LOG_FILE"
 else
-  echo "No log file found"
+  echo "No log file found: $LOG_FILE"
 fi
