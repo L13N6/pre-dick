@@ -1,10 +1,10 @@
 #!/bin/sh
 # Smart Predict runner v2
 # Usage:
-#   bash run_predict_v2.sh --mode chartist
-#   bash run_predict_v2.sh --mode conservative
-#   bash run_predict_v2.sh --mode sentiment
-#   bash run_predict_v2.sh --mode macro
+#   bash predict.sh --mode chartist
+#   bash predict.sh --mode conservative
+#   bash predict.sh --mode sentiment
+#   bash predict.sh --mode macro
 
 set -e
 
@@ -23,7 +23,7 @@ while [ $# -gt 0 ]; do
             ;;
         *)
             echo "Unknown argument: $1"
-            echo "Usage: bash run_predict_v2.sh --mode chartist|conservative|sentiment|macro [--tickets 300]"
+            echo "Usage: bash predict.sh --mode chartist|conservative|sentiment|macro [--tickets 300]"
             exit 1
             ;;
     esac
@@ -44,5 +44,5 @@ esac
 export PREDICT_MODE="$MODE"
 export PREDICT_TICKETS="$TICKETS"
 
-cd "$HOME/.openclaw/workspace" 2>/dev/null || cd /root/.openclaw/workspace 2>/dev/null || true
-python3 /root/.openclaw/workspace/run_predict_v2.py
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+python3 "$SCRIPT_DIR/run_predict_v2.py"
