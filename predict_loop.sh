@@ -10,7 +10,7 @@
 set -e
 
 MODE="chartist"
-SLEEP_SECS="900"
+SLEEP_SECS="60"
 TICKETS="300"
 
 while [ $# -gt 0 ]; do

@@ -141,16 +141,37 @@ def parse_snapshot(prompt: str) -> Optional[str]:
 
 def words_for_letters(letters: str) -> str:
     bank = {
-        "A": "Alpha", "B": "Bias", "C": "Context", "D": "Drift", "E": "Early",
-        "F": "Flow", "G": "Grip", "H": "Holding", "I": "Impulse", "J": "Joint",
-        "K": "Keeps", "L": "Lean", "M": "Momentum", "N": "Now", "O": "Order",
-        "P": "Price", "Q": "Quality", "R": "Risk", "S": "Structure", "T": "Trend",
-        "U": "Under", "V": "Volatility", "W": "Weakness", "X": "Xray", "Y": "Yield",
-        "Z": "Zone",
+        "A": ["Adaptive", "Alpha", "Angle"],
+        "B": ["Bias", "Base", "Bounce"],
+        "C": ["Context", "Control", "Continuation"],
+        "D": ["Drift", "Downside", "Demand"],
+        "E": ["Early", "Edge", "Expansion"],
+        "F": ["Flow", "Follow", "Fade"],
+        "G": ["Grip", "Gradient", "Gamma"],
+        "H": ["Holding", "Higher", "Hedge"],
+        "I": ["Impulse", "Intraday", "Intensity"],
+        "J": ["Joint", "Jump", "Jolt"],
+        "K": ["Keeps", "Key", "Kick"],
+        "L": ["Lean", "Lower", "Liquidity"],
+        "M": ["Momentum", "Market", "Move"],
+        "N": ["Now", "Near", "Negative"],
+        "O": ["Order", "Orderflow", "Oscillation"],
+        "P": ["Price", "Pressure", "Path"],
+        "Q": ["Quick", "Quiet", "Quality"],
+        "R": ["Risk", "Relative", "Rejection"],
+        "S": ["Structure", "Support", "Selling"],
+        "T": ["Trend", "Tape", "Trigger"],
+        "U": ["Under", "Upside", "Urgency"],
+        "V": ["Volatility", "Value", "Velocity"],
+        "W": ["Weakness", "Wave", "Weight"],
+        "X": ["Xray", "Xfactor", "Xtrend"],
+        "Y": ["Yield", "Yellow", "Yearly"],
+        "Z": ["Zone", "Zigzag", "Zenith"],
     }
     parts = []
-    for ch in letters[:3]:
-        parts.append(bank.get(ch.upper(), ch.upper()))
+    for idx, ch in enumerate(letters[:3]):
+        choices = bank.get(ch.upper(), [ch.upper()])
+        parts.append(choices[min(idx, len(choices)-1)])
     return " ".join(parts)
 
 
@@ -244,6 +265,11 @@ def main() -> int:
     unlock_wallet()
     pf = preflight()
     print(json.dumps(pf, indent=2))
+    try:
+        run_cmd(["predict-agent", "set-persona", MODE, "--server", SERVER], check=False)
+        print(f"[run_predict_v2] ensured persona={MODE}")
+    except Exception as e:
+        print(f"[run_predict_v2] persona set skipped: {e}")
     ctx = context()
     print(json.dumps(ctx, indent=2))
     action = ctx.get("data", {}).get("recommendation", {}).get("action")
@@ -260,6 +286,8 @@ def main() -> int:
     dynamic_retries = min(MAX_RETRIES, remaining)
     if remaining == 1:
         dynamic_retries = 1
+    elif remaining >= 2:
+        dynamic_retries = max(2, dynamic_retries)
 
     market_id, market, _ = pick_market(ctx)
     closes_in = int(market.get("closes_in_seconds", 0) or 0)
@@ -296,6 +324,19 @@ def main() -> int:
         if err_letters:
             forced_letters = err_letters
             print(f"[run_predict_v2] server hinted letters={forced_letters}; will retry with adapted reasoning")
+        # refresh timeslot after a failed attempt so we do not burn the last slot carelessly
+        try:
+            post_ctx = context()
+            rem2, used2, reset2 = get_timeslot_info(post_ctx)
+            print(f"[run_predict_v2] post-fail timeslot remaining={rem2} used={used2} resets_in={reset2}s")
+            if rem2 <= 0:
+                print("[run_predict_v2] no submissions remaining after failure; stopping")
+                return 1
+            if rem2 == 1 and attempt < dynamic_retries:
+                print("[run_predict_v2] only one submission left; preserving it for next cycle")
+                return 1
+        except Exception as e:
+            print(f"[run_predict_v2] post-fail context refresh skipped: {e}")
         time.sleep(2)
 
     print("[run_predict_v2] exhausted retries without success")
