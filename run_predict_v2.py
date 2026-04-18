@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import random
 import os
 import re
 import subprocess
@@ -141,86 +142,115 @@ def parse_snapshot(prompt: str) -> Optional[str]:
 
 def words_for_letters(letters: str) -> str:
     bank = {
-        "A": ["Adaptive", "Alpha", "Angle"],
-        "B": ["Bias", "Base", "Bounce"],
-        "C": ["Context", "Control", "Continuation"],
-        "D": ["Drift", "Downside", "Demand"],
-        "E": ["Early", "Edge", "Expansion"],
-        "F": ["Flow", "Follow", "Fade"],
-        "G": ["Grip", "Gradient", "Gamma"],
-        "H": ["Holding", "Higher", "Hedge"],
-        "I": ["Impulse", "Intraday", "Intensity"],
-        "J": ["Joint", "Jump", "Jolt"],
-        "K": ["Keeps", "Key", "Kick"],
-        "L": ["Lean", "Lower", "Liquidity"],
-        "M": ["Momentum", "Market", "Move"],
-        "N": ["Now", "Near", "Negative"],
-        "O": ["Order", "Orderflow", "Oscillation"],
-        "P": ["Price", "Pressure", "Path"],
-        "Q": ["Quick", "Quiet", "Quality"],
-        "R": ["Risk", "Relative", "Rejection"],
-        "S": ["Structure", "Support", "Selling"],
-        "T": ["Trend", "Tape", "Trigger"],
-        "U": ["Under", "Upside", "Urgency"],
-        "V": ["Volatility", "Value", "Velocity"],
-        "W": ["Weakness", "Wave", "Weight"],
-        "X": ["Xray", "Xfactor", "Xtrend"],
-        "Y": ["Yield", "Yellow", "Yearly"],
-        "Z": ["Zone", "Zigzag", "Zenith"],
+        "A": ["Adaptive", "Alpha", "Angle", "Aggressive", "Alert"],
+        "B": ["Bias", "Base", "Bounce", "Bullish", "Bearish"],
+        "C": ["Context", "Control", "Continuation", "Chart", "Cycle"],
+        "D": ["Drift", "Downside", "Demand", "Daily", "Dynamic"],
+        "E": ["Early", "Edge", "Expansion", "Entry", "Exposure"],
+        "F": ["Flow", "Follow", "Fade", "Force", "Fast"],
+        "G": ["Grip", "Gradient", "Gamma", "Growth", "Gap"],
+        "H": ["Holding", "Higher", "Hedge", "History", "Heavy"],
+        "I": ["Impulse", "Intraday", "Intensity", "Immediate", "Inside"],
+        "J": ["Joint", "Jump", "Jolt", "Justified", "Journal"],
+        "K": ["Keeps", "Key", "Kick", "Kind", "Kinetic"],
+        "L": ["Lean", "Lower", "Liquidity", "Levels", "Local"],
+        "M": ["Momentum", "Market", "Move", "Measured", "Main"],
+        "N": ["Now", "Near", "Negative", "Neutral", "Natural"],
+        "O": ["Order", "Orderflow", "Oscillation", "Original", "Open"],
+        "P": ["Price", "Pressure", "Path", "Patterns", "Pivot"],
+        "Q": ["Quick", "Quiet", "Quality", "Quant", "Query"],
+        "R": ["Risk", "Relative", "Rejection", "Range", "Reaction"],
+        "S": ["Structure", "Support", "Selling", "Sentiment", "Short"],
+        "T": ["Trend", "Tape", "Trigger", "Technical", "Target"],
+        "U": ["Under", "Upside", "Urgency", "Upper", "Unfolding"],
+        "V": ["Volatility", "Value", "Velocity", "Volume", "Visual"],
+        "W": ["Weakness", "Wave", "Weight", "Window", "Watch"],
+        "X": ["Xray", "Xfactor", "Xtrend", "Xcross", "Xpoint"],
+        "Y": ["Yield", "Yellow", "Yearly", "Yesterday", "Yardstick"],
+        "Z": ["Zone", "Zigzag", "Zenith", "Zero", "Zoom"],
     }
     parts = []
-    for idx, ch in enumerate(letters[:3]):
+    # Pick a random word from the bank for each letter
+    for ch in letters[:3]:
         choices = bank.get(ch.upper(), [ch.upper()])
-        parts.append(choices[min(idx, len(choices)-1)])
+        parts.append(random.choice(choices))
     return " ".join(parts)
 
+
+import random
+
+# ... (rest of imports)
 
 def build_reasoning(mode: str, direction: str, market: Dict[str, Any], candles: List[Dict[str, Any]], letters: Optional[str], snapshot: Optional[str]) -> str:
     hi, lo, last = price_levels(candles)
     asset = market.get("asset", "BTC/USDT")
     market_id = market.get("id", "unknown-market")
     phrase = words_for_letters(letters) if letters else "Price Trend Structure"
-    snapshot_text = f" I also note the current snapshot {snapshot}." if snapshot else ""
-
-    if mode == "chartist":
-        core = (
-            f"Chartist read for {asset} in {market_id}: short-term structure currently leans {direction}. "
-            f"Recent one-minute candles show price reacting around resistance near {hi} and support near {lo}, with latest trade near {last}. "
-            f"{phrase} appears in the immediate tape as momentum fades after bounces and local highs keep attracting sellers." if direction == "down" else
-            f"Chartist read for {asset} in {market_id}: short-term structure currently leans {direction}. "
-            f"Recent one-minute candles show price reacting around resistance near {hi} and support near {lo}, with latest trade near {last}. "
-            f"{phrase} appears in the immediate tape as pullbacks hold cleaner and local lows keep getting bought."
-        )
-    elif mode == "conservative":
-        core = (
-            f"Conservative read for {asset}: I prefer measured exposure and the present structure still leans {direction}. "
-            f"Price is trading near {last} inside a recent range capped near {hi} and supported near {lo}. "
-            f"{phrase} in the short-term setup suggests caution, with risk controlled and only a modest ticket size justified."
-        )
-    elif mode == "sentiment":
-        core = (
-            f"Sentiment read for {asset}: crowd positioning looks balanced on the surface, but the immediate tape still leans {direction}. "
-            f"With price near {last}, moves toward {hi} have not expanded cleanly while reactions toward {lo} still attract emotion. "
-            f"{phrase} captures the shift in short-term crowd energy that favors this side into the window close."
-        )
-    elif mode == "macro":
-        core = (
-            f"Macro-style read for {asset}: even on a short window, the tape currently leans {direction}. "
-            f"Price near {last} is trading between {lo} and {hi}, and the market is respecting short-term risk-off versus risk-on cues rather than breaking decisively. "
-            f"{phrase} reflects that broader pressure still tilts this window toward the chosen side."
-        )
+    
+    # Diversify openers
+    intros = [
+        f"Analyzing {asset} for {market_id}, technicals lean {direction}.",
+        f"Looking at {asset} chart, the short-term bias is currently {direction}.",
+        f"The tape for {asset} ({market_id}) suggests a {direction} move.",
+        f"Market structure on {asset} 1m klines confirms a {direction} tilt.",
+        f"Price action for {asset} shows {direction} pressure building."
+    ]
+    
+    # Diversify mid-sections
+    levels = [
+        f"Current trade is near {last} with recent boundaries at {hi} and {lo}.",
+        f"Observing price at {last}, respecting resistance {hi} and support {lo}.",
+        f"Action stays within the {lo} to {hi} range, currently at {last}.",
+        f"Local volatility peaks near {hi} and finds floors near {lo}, trading at {last}."
+    ]
+    
+    # Diversify logic based on direction and mode
+    if direction == "down":
+        observations = [
+            f"Fading momentum after testing local highs suggests sellers are active.",
+            f"Failed reclaim of support levels points toward a continued slide.",
+            f"Lower highs forming on the 1m chart indicate weakening demand.",
+            f"Orderflow reveals distribution as price struggles to expand upward."
+        ]
     else:
-        core = (
-            f"Predict read for {asset}: setup leans {direction}. Price is near {last}, with recent action bounded by {lo} and {hi}. "
-            f"{phrase} in the short-term tape supports this directional call."
-        )
+        observations = [
+            f"Bullish absorption near local lows suggests a bounce is imminent.",
+            f"Strong hold of the support floor confirms buyer interest.",
+            f"Ascending base structure supports a move toward the upper range.",
+            f"Momentum expansion on the 1m tape favors upside continuation."
+        ]
+        
+    # Diversify mode flavor
+    mode_flavors = {
+        "chartist": ["technical indicators align", "price structure patterns hold", "momentum oscillators support this"],
+        "conservative": ["risk-reward ratio remains favorable", "waiting for confirmation of this bias", "maintaining tight range exposure"],
+        "sentiment": ["crowd psychology reflects this bias", "sentiment drift favors this direction", "market participants are leaning this way"],
+        "macro": ["global risk trends tilt this way", "short-term correlation supports the thesis", "broader market pressure is consistent"]
+    }
+    flavor = random.choice(mode_flavors.get(mode, ["current bias persists"]))
+    
+    # Combine components
+    intro = random.choice(intros)
+    level = random.choice(levels)
+    obs = random.choice(observations)
+    
+    # Structure the reasoning
+    parts = [intro, level, obs]
+    
+    # Randomize where the challenge phrase goes
+    if random.random() > 0.5:
+        parts.insert(2, f"It appears {phrase} helps confirm the entry.")
+    else:
+        parts.append(f"Consequently, {phrase} remains the primary filter.")
 
-    tail = (
-        f"{snapshot_text} Ticket size stays controlled because volatility remains two-sided, but the probability still favors {direction} before the market closes."
-    )
-    reasoning = core + tail
-    if len(reasoning) < 80:
-        reasoning += " The structure is not random noise; repeated reactions around these levels support the chosen direction."
+    reasoning = " ".join(parts)
+    reasoning += f" Mode {mode} is active and {flavor}."
+    
+    if snapshot:
+        reasoning += f" Snapshot value {snapshot} noted."
+    
+    reasoning += f" Final thesis: {direction} into the close."
+    
     return reasoning[:1900]
 
 
@@ -263,14 +293,38 @@ def parse_letters_from_error(res: Dict[str, Any]) -> Optional[str]:
 def main() -> int:
     print(f"[run_predict_v2] mode={MODE} server={SERVER}")
     unlock_wallet()
-    pf = preflight()
-    print(json.dumps(pf, indent=2))
-    try:
-        run_cmd(["predict-agent", "set-persona", MODE, "--server", SERVER], check=False)
-        print(f"[run_predict_v2] ensured persona={MODE}")
-    except Exception as e:
-        print(f"[run_predict_v2] persona set skipped: {e}")
+    
+    # Preflight with retries for network resilience
+    pf = None
+    for i in range(3):
+        try:
+            pf = preflight()
+            if pf.get("ok"): break
+        except Exception as e:
+            print(f"[run_predict_v2] preflight attempt {i+1} failed: {e}")
+        time.sleep(2)
+    
+    if pf: print(json.dumps(pf, indent=2))
+
+    # Persona Handling: only set if different or forced
+    current_persona = (pf or {}).get("data", {}).get("persona", "none")
+    if current_persona != MODE:
+        try:
+            run_cmd(["predict-agent", "set-persona", MODE, "--server", SERVER], check=False)
+            print(f"[run_predict_v2] tried setting persona={MODE}")
+        except Exception as e:
+            print(f"[run_predict_v2] persona set call skipped: {e}")
+    else:
+        print(f"[run_predict_v2] persona already correct ({MODE})")
+
     ctx = context()
+    if not ctx.get("ok"):
+        # retry context once if failed
+        time.sleep(2)
+        ctx = context()
+
+    print(json.dumps(ctx, indent=2))
+    # ... (rest of main)
     print(json.dumps(ctx, indent=2))
     action = ctx.get("data", {}).get("recommendation", {}).get("action")
     if action != "submit":
